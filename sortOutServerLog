@@ -1,0 +1,110 @@
+#coding:utf-8 
+#file: FileSplit.py
+
+import os,os.path,time
+
+def FileSplit(sourceFile, targetFolder):
+	sFile = open(sourceFile, 'r')
+	number = 100000		#每个小文件中保存100000条数据
+	dataLine = sFile.readline()
+	tempData = []	#缓存列表
+	fileNum = 1
+	if not os.path.isdir(targetFolder):  #如果目标目录不存在，则创建
+		os.mkdir(targetFolder)
+	while dataLine:	#有数据
+		for row in range(number): 
+			tempData.append(dataLine)	#将一行数据添加到列表中
+			dataLine = sFile.readline()
+			if not dataLine :
+				break
+		tFilename = os.path.join(targetFolder,os.path.split(sourceFile)[1] + str(fileNum) + ".txt")
+		tFile = open(tFilename, 'a+')	#创建小文件
+		tFile.writelines(tempData)	#将列表保存到文件中
+		tFile.close()  
+		tempData = []	#清空缓存列表
+		print(tFilename + " 创建于: " + str(time.ctime()))
+		fileNum += 1		#文件编号
+			
+	sFile.close()
+
+if __name__ == "__main__" :
+	FileSplit("access.log","access")
+#coding:utf-8 
+#file: Map.py
+
+import os,os.path,re
+
+def Map(sourceFile, targetFolder):
+	sFile = open(sourceFile, 'r')
+	dataLine = sFile.readline()
+	tempData = {}	#缓存列表
+	if not os.path.isdir(targetFolder):  #如果目标目录不存在，则创建
+		os.mkdir(targetFolder)
+	while dataLine:	#有数据
+		p_re = re.compile(r'(GET|POST)\s(.*?)\sHTTP/1.[01]',re.IGNORECASE) #用正则表达式解析数据
+		match = p_re.findall(dataLine)
+		if match:
+			visitUrl = match[0][1]
+			if visitUrl in tempData:
+				tempData[visitUrl] += 1
+			else:
+				tempData[visitUrl] = 1
+		dataLine = sFile.readline()	#读入下一行数据
+	
+	sFile.close()
+
+	tList = []
+	for key,value in sorted(tempData.items(),key = lambda k:k[1],reverse = True):
+		tList.append(key + " " + str(value) + '\n')
+
+	
+	tFilename = os.path.join(targetFolder,os.path.split(sourceFile)[1] + "_map.txt")
+	tFile = open(tFilename, 'a+')	#创建小文件
+	tFile.writelines(tList)	#将列表保存到文件中
+	tFile.close()
+	
+
+if __name__ == "__main__" :
+	Map("access\\access.log1.txt","access")
+	Map("access\\access.log2.txt","access")
+	Map("access\\access.log3.txt","access")
+  
+  #coding:utf-8 
+#file: Reduce.py
+
+import os,os.path,re
+
+def Reduce(sourceFolder, targetFile):
+	tempData = {}	#缓存列表
+	p_re = re.compile(r'(.*?)(\d{1,}$)',re.IGNORECASE) #用正则表达式解析数据
+	for root,dirs,files in os.walk(sourceFolder):
+		for fil in files:
+			if fil.endswith('_map.txt'):	#是reduce文件
+				sFile = open(os.path.abspath(os.path.join(root,fil)), 'r')
+				dataLine = sFile.readline()
+	
+				while dataLine:	#有数据
+					subdata = p_re.findall(dataLine) #用空格分割数据
+					#print(subdata[0][0],"  ",subdata[0][1])
+					if subdata[0][0] in tempData:
+						tempData[subdata[0][0]] += int(subdata[0][1])
+					else:
+						tempData[subdata[0][0]] = int(subdata[0][1])
+					dataLine = sFile.readline()	#读入下一行数据
+	
+				sFile.close()
+
+	tList = []
+	for key,value in sorted(tempData.items(),key = lambda k:k[1],reverse = True):
+		tList.append(key + " " + str(value) + '\n')
+
+	
+	tFilename = os.path.join(sourceFolder,targetFile + "_reduce.txt")
+	tFile = open(tFilename, 'a+')	#创建小文件
+	tFile.writelines(tList)	#将列表保存到文件中
+	tFile.close()
+	
+
+if __name__ == "__main__" :
+	Reduce("access","access")
+
